@@ -124,7 +124,7 @@ def get_player_data(url_base, player_role):
 
                         data[key].append([hero_name, result, lane, role, side.capitalize()])
                 else:
-                    for tr in table.find('tbody').find_all('tr):
+                    for tr in table.find('tbody').find_all('tr'):
                         cells = tr.find_all('td')
                         hero_name = cells[1].text.strip()
                         matches = cells[2].text.strip()
