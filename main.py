@@ -134,7 +134,7 @@ def get_player_data(url_base, player_role):
     for key in data:
         if data[key]:
             df = pd.DataFrame(data[key], columns=['Hero', 'Result', 'Lane', 'Role', 'Faction'])
-            df = clean_player_df(df, player_role)
+            #df = clean_player_df(df, player_role)
             data[key] = df
         else:
             data[key] = None
