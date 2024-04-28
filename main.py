@@ -126,9 +126,9 @@ def get_player_data(url_base, player_role):
                 else:
                     for tr in table.find('tbody').find_all('tr'):
                         cells = tr.find_all('td')
-                        hero_name = cells[1].text.strip()
-                        matches = cells[2].text.strip()
-                        win_percentage = cells[3].text.strip()
+                        hero_name = cells[2].text.strip()
+                        matches = cells[3].text.strip()
+                        win_percentage = cells[4].text.strip()
 
                         data[key].append([hero_name, matches, win_percentage, side.capitalize()])
 
