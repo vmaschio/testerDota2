@@ -88,6 +88,7 @@ def get_player_data(url_base, player_role):
         'df_esports': []
     }
     sides = ['radiant', 'dire']
+    clean_url = url_base.split('matches')[0].rstrip('?')
     urls = {
         'df_pub': url_base,
         'df_esports': url_base.replace('/players/', '/esports/players/')
@@ -96,7 +97,7 @@ def get_player_data(url_base, player_role):
 
     for key, base_url in urls.items():
         for side in sides:
-            url = f"{url_base}&faction={side}"
+            url = f"{base_url}&faction={side}"
         
             while True:
                 response = requests.get(url, headers=headers)
