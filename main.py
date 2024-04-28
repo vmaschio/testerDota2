@@ -106,23 +106,31 @@ def get_player_data(url_base, player_role):
 
                 if not table:
                     break
+                if key =='df_pub':
+                    for tr in table.find('tbody').find_all('tr'):
+                        hero_cell = tr.find_all('td')[1]
+                        hero_name = hero_cell.find('a').text.strip()
+                        result_cell = tr.find_all('td')[3]
+                        result = result_cell.find('a').text.strip()
+                        icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
 
-                for tr in table.find('tbody').find_all('tr'):
-                    hero_cell = tr.find_all('td')[1]
-                    hero_name = hero_cell.find('a').text.strip()
-                    result_cell = tr.find_all('td')[3]
-                    result = result_cell.find('a').text.strip()
-                    icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
+                        lane = ""
+                        role = ""
+                        for icon in icons:
+                            if 'lane-icon' in icon['class']:
+                                lane = icon['class'][1].split('-')[2]
+                            if 'role-icon' in icon['class']:
+                                role = icon['class'][1].split('-')[2]
 
-                    lane = ""
-                    role = ""
-                    for icon in icons:
-                        if 'lane-icon' in icon['class']:
-                            lane = icon['class'][1].split('-')[2]
-                        if 'role-icon' in icon['class']:
-                            role = icon['class'][1].split('-')[2]
+                        data[key].append([hero_name, result, lane, role, side.capitalize()])
+                else:
+                    for tr in table.find('tbody').find_all('tr):
+                        cells = tr.find_all('td')
+                        hero_name = cells[1].text.strip()
+                        matches = cells[2].text.strip()
+                        win_percentage = cells[3].text.strip()
 
-                    data[key].append([hero_name, result, lane, role, side.capitalize()])
+                        data[key].append([hero_name, matches, win_percentage, side.capitalize()])
 
                 # Paginação
                 next_page = soup.find('a', rel='next')
@@ -133,8 +141,11 @@ def get_player_data(url_base, player_role):
 
     for key in data:
         if data[key]:
-            df = pd.DataFrame(data[key], columns=['Hero', 'Result', 'Lane', 'Role', 'Faction'])
-            #df = clean_player_df(df, player_role)
+            if key == 'df_pub':
+                df = pd.DataFrame(data[key], columns=['Hero', 'Result', 'Lane', 'Role', 'Faction'])
+                df = clean_player_df(df, player_role)
+            else:
+                df = pd.DataFrame(data[key], columns=['Hero', 'Matches', 'Win %', 'Faction'])
             data[key] = df
         else:
             data[key] = None
