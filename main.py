@@ -188,7 +188,16 @@ def get_player_data_enemy(url_base):
     else:
         return None
 
-def clean_player_df(df, player_role):    
+def clean_player_df(df, player_role):   
+    if player_role == 'Carry':
+        df = df.query("Role == 'core' and Lane == 'safelane'")
+    elif player_role == 'Mid':
+        df = df.query("Role == 'core' and Lane == 'midlane'")
+    elif player_role == 'Offlane':
+        df = df.query("Role == 'core' and Lane == 'offlane'")
+    elif player_role == 'Support':
+        df = df.query("Role == 'support' and (Lane == 'safelane' or Lane == 'offlane' or Lane == 'roaming')")
+        
     df['Total Matches'] = 1
     df['Won Match'] = (df['Result'] == 'Won Match').astype(int)
     df['Lost Match'] = (df['Result'] == 'Lost Match').astype(int)
