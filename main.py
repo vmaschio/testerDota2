@@ -193,7 +193,7 @@ def clean_player_df(df, player_role):
         df = df.query("Role == 'support' and (Lane == 'safelane' or Lane == 'offlane' or Lane == 'roaming')")
 
     df_pub = df[df['Type'] == 'Ranked']
-    df_esports = df[df['Type] == 'Tournament']
+    df_esports = df[df['Type'] == 'Tournament']
     dfs = [df_pub, df_esports]
 
     processesd_dfs = []
