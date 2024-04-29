@@ -33,8 +33,8 @@ players = {
         "url": "https://www.dotabuff.com/players/107579895/matches?date=month&enhance=overview",
         "role": "Offlane"
     },
-    "Rdo": {
-        "url": "https://www.dotabuff.com/players/119315361/matches?date=month&enhance=overview",
+    "Grd": {
+        "url": "https://www.dotabuff.com/players/84853828/matches?date=month&enhance=overview",
         "role": "Support"
     },
     "hyko": {
@@ -88,49 +88,37 @@ def get_player_data(url_base, player_role):
         'df_esports': []
     }
     sides = ['radiant', 'dire']
-    clean_url = url_base.split('matches')[0].rstrip('?')
-    urls = {
-        'df_pub': url_base,
-        'df_esports': url_base.replace('/players/', '/esports/players/')
-    }
     player_role = player_role
 
-    for key, base_url in urls.items():
-        for side in sides:
-            url = f"{base_url}&faction={side}"
+    for side in sides:
+        url = f"{base_url}&faction={side}"
         
-            while True:
-                response = requests.get(url, headers=headers)
-                soup = BeautifulSoup(response.content, 'html.parser')
-                table = soup.find('table')
+        while True:
+            response = requests.get(url, headers=headers)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            table = soup.find('table')
 
-                if not table:
-                    break
-                if key =='df_pub':
-                    for tr in table.find('tbody').find_all('tr'):
-                        hero_cell = tr.find_all('td')[1]
-                        hero_name = hero_cell.find('a').text.strip()
-                        result_cell = tr.find_all('td')[3]
-                        result = result_cell.find('a').text.strip()
-                        icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
+            if not table:
+                break
 
-                        lane = ""
-                        role = ""
-                        for icon in icons:
-                            if 'lane-icon' in icon['class']:
-                                lane = icon['class'][1].split('-')[2]
-                            if 'role-icon' in icon['class']:
-                                role = icon['class'][1].split('-')[2]
+            for tr in table.find('tbody').find_all('tr'):
+                hero_cell = tr.find_all('td')[1]
+                hero_name = hero_cell.find('a').text.strip()
+                result_cell = tr.find_all('td')[3]
+                result = result_cell.find('a').text.strip()
+                icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
+                type_cell = tr.find_all('td')[4]
+                type = type_cell.find('a').text.strip() if type_cell.find('a') else type_cell.text.strip()
 
-                        data[key].append([hero_name, result, lane, role, side.capitalize()])
-                else:
-                    for tr in table.find('tbody').find_all('tr'):
-                        cells = tr.find_all('td')
-                        hero_name = cells[2].text.strip()
-                        matches = cells[3].text.strip()
-                        win_percentage = cells[4].text.strip()
+                lane = ""
+                role = ""
+                for icon in icons:
+                    if 'lane-icon' in icon['class']:
+                        lane = icon['class'][1].split('-')[2]
+                    if 'role-icon' in icon['class']:
+                        role = icon['class'][1].split('-')[2]
 
-                        data[key].append([hero_name, matches, win_percentage, side.capitalize()])
+                all_data.append([hero_name, result, lane, role, side.capitalize()])
 
                 # Paginação
                 next_page = soup.find('a', rel='next')
@@ -138,19 +126,13 @@ def get_player_data(url_base, player_role):
                     url = 'https://www.dotabuff.com' + next_page['href']
                 else:
                     break
-
-    for key in data:
-        if data[key]:
-            if key == 'df_pub':
-                df = pd.DataFrame(data[key], columns=['Hero', 'Result', 'Lane', 'Role', 'Faction'])
-                df = clean_player_df(df, player_role)
-            else:
-                df = pd.DataFrame(data[key], columns=['Hero', 'Matches', 'Win %', 'Faction'])
-            data[key] = df
-        else:
-            data[key] = None
-
-    return data
+                    
+    if all_data:
+        df = pd.DataFrame(all_data, columns=['Hero', 'Result', 'Lane', 'Role', 'Faction', 'Type'])
+        df = clean_player_df(df)
+        return df
+    else:
+        return None
 
 def get_player_data_enemy(url_base):
     # Quando o player for core ignorar partida de sup e vice-versa
@@ -209,29 +191,38 @@ def clean_player_df(df, player_role):
         df = df.query("Role == 'core' and Lane == 'offlane'")
     elif player_role == 'Support':
         df = df.query("Role == 'support' and (Lane == 'safelane' or Lane == 'offlane' or Lane == 'roaming')")
-        
-    df['Total Matches'] = 1
-    df['Won Match'] = (df['Result'] == 'Won Match').astype(int)
-    df['Lost Match'] = (df['Result'] == 'Lost Match').astype(int)
-    df['Core'] = (df['Role'] == 'core').astype(int)
-    df['Safelane'] = (df['Lane'] == 'safelane').astype(int)
-    df['Midlane'] = (df['Lane'] == 'midlane').astype(int)
-    df['Offlane'] = (df['Lane'] == 'offlane').astype(int)
-    df['Roaming'] = (df['Lane'] == 'roaming').astype(int)
-    df['Support'] = (df['Role'] == 'support').astype(int)
 
-    cleaned_df = df.groupby('Hero').agg({
-        'Total Matches': 'sum',
-        'Won Match': 'sum',
-        'Lost Match': 'sum',
-    }).reset_index()
-    cleaned_df['Vitórias/Derrota'] = cleaned_df.apply(lambda row: f"{row['Won Match']} - {row['Lost Match']}", axis=1)
-    cleaned_df['Win %'] = (cleaned_df['Won Match'] / cleaned_df['Total Matches']) * 100
-    cleaned_df['Win %'] = cleaned_df['Win %'].apply(lambda x: f"{x:.2f}%")
-    cleaned_df = cleaned_df.sort_values(by='Total Matches', ascending=False)
-    cleaned_df.drop(['Won Match', 'Lost Match'], axis=1, inplace=True)
+    df_pub = df[df['Type'] == 'Ranked']
+    df_esports = df[df['Type] == 'Tournament']
+    dfs = [df_pub, df_esports]
 
-    return cleaned_df
+    processesd_dfs = []
+
+    for data in dfs:
+        df['Total Matches'] = 1
+        df['Won Match'] = (df['Result'] == 'Won Match').astype(int)
+        df['Lost Match'] = (df['Result'] == 'Lost Match').astype(int)
+        df['Core'] = (df['Role'] == 'core').astype(int)
+        df['Safelane'] = (df['Lane'] == 'safelane').astype(int)
+        df['Midlane'] = (df['Lane'] == 'midlane').astype(int)
+        df['Offlane'] = (df['Lane'] == 'offlane').astype(int)
+        df['Roaming'] = (df['Lane'] == 'roaming').astype(int)
+        df['Support'] = (df['Role'] == 'support').astype(int)
+
+        cleaned_df = df.groupby('Hero').agg({
+            'Total Matches': 'sum',
+            'Won Match': 'sum',
+            'Lost Match': 'sum',
+        }).reset_index()
+        cleaned_df['Vitórias/Derrota'] = cleaned_df.apply(lambda row: f"{row['Won Match']} - {row['Lost Match']}", axis=1)
+        cleaned_df['Win %'] = (cleaned_df['Won Match'] / cleaned_df['Total Matches']) * 100
+        cleaned_df['Win %'] = cleaned_df['Win %'].apply(lambda x: f"{x:.2f}%")
+        cleaned_df = cleaned_df.sort_values(by='Total Matches', ascending=False)
+        cleaned_df.drop(['Won Match', 'Lost Match'], axis=1, inplace=True)
+    
+        processed_dfs.append(cleaned_df)
+    
+    return processed_dfs[0], processed_dfs[1]
 
 def show_teams(teams):
     st.title('Estatísticas dos times')
