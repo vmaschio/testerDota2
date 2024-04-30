@@ -173,10 +173,11 @@ def get_player_data_enemy(url_base):
                 break
 
     if all_data:
-        df = pd.DataFrame(all_data, columns=['Hero', 'Result', 'Lane', 'Role', 'Faction'])
-        df = clean_player_df(df)
-        return df
+        df = pd.DataFrame(all_data, columns=['Hero', 'Result', 'Lane', 'Role', 'Faction', 'Type'])
+        df_pub, df_esports = clean_player_df(df, player_role)
+        return {'df_pub': df_pub, 'df_esports': df_esports}
     else:
+        return None
 
 def clean_player_df(df, player_role):   
     if player_role == 'Carry':
