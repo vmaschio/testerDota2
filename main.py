@@ -91,7 +91,7 @@ def get_player_data(url_base, player_role):
     player_role = player_role
 
     for side in sides:
-        url = f"{base_url}&faction={side}"
+        url = f"{url_base}&faction={side}"
         
         while True:
             response = requests.get(url, headers=headers)
