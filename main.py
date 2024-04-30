@@ -105,7 +105,7 @@ def get_player_data(url_base, player_role):
                 result = result_cell.find('a').text.strip()
                 icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
                 type_cell = tr.find_all('td')[4]
-                type = type_cell.find('a').text.strip() if type_cell.find('a') else type_cell.text.strip()
+                type_game = type_cell.find('a').text.strip() if type_cell.find('a') else type_cell.text.strip()
 
                 lane = ""
                 role = ""
@@ -115,7 +115,7 @@ def get_player_data(url_base, player_role):
                     if 'role-icon' in icon['class']:
                         role = icon['class'][1].split('-')[2]
 
-                all_data.append([hero_name, result, lane, role, side.capitalize()])
+                all_data.append([hero_name, result, lane, role, side.capitalize(), type_game])
 
                 # Paginação
                 next_page = soup.find('a', rel='next')
@@ -126,7 +126,7 @@ def get_player_data(url_base, player_role):
                     
     if all_data:
         df = pd.DataFrame(all_data, columns=['Hero', 'Result', 'Lane', 'Role', 'Faction', 'Type'])
-        df = clean_player_df(df)
+        df = clean_player_df(df, player_role)
         return df
     else:
         return None
