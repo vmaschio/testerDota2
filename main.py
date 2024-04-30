@@ -196,26 +196,26 @@ def clean_player_df(df, player_role):
     processesd_dfs = []
 
     for data in dfs:
-        df['Total Matches'] = 1
-        df['Won Match'] = (df['Result'] == 'Won Match').astype(int)
-        df['Lost Match'] = (df['Result'] == 'Lost Match').astype(int)
-        df['Core'] = (df['Role'] == 'core').astype(int)
-        df['Safelane'] = (df['Lane'] == 'safelane').astype(int)
-        df['Midlane'] = (df['Lane'] == 'midlane').astype(int)
-        df['Offlane'] = (df['Lane'] == 'offlane').astype(int)
-        df['Roaming'] = (df['Lane'] == 'roaming').astype(int)
-        df['Support'] = (df['Role'] == 'support').astype(int)
+        data['Total Matches'] = 1
+        data['Won Match'] = (data['Result'] == 'Won Match').astype(int)
+        data['Lost Match'] = (data['Result'] == 'Lost Match').astype(int)
+        data['Core'] = (data['Role'] == 'core').astype(int)
+        data['Safelane'] = (data['Lane'] == 'safelane').astype(int)
+        data['Midlane'] = (data['Lane'] == 'midlane').astype(int)
+        data['Offlane'] = (data['Lane'] == 'offlane').astype(int)
+        data['Roaming'] = (data['Lane'] == 'roaming').astype(int)
+        data['Support'] = (data['Role'] == 'support').astype(int)
 
-        cleaned_df = df.groupby('Hero').agg({
+        cleaned_data = data.groupby('Hero').agg({
             'Total Matches': 'sum',
             'Won Match': 'sum',
             'Lost Match': 'sum',
         }).reset_index()
-        cleaned_df['Vitórias/Derrota'] = cleaned_df.apply(lambda row: f"{row['Won Match']} - {row['Lost Match']}", axis=1)
-        cleaned_df['Win %'] = (cleaned_df['Won Match'] / cleaned_df['Total Matches']) * 100
-        cleaned_df['Win %'] = cleaned_df['Win %'].apply(lambda x: f"{x:.2f}%")
-        cleaned_df = cleaned_df.sort_values(by='Total Matches', ascending=False)
-        cleaned_df.drop(['Won Match', 'Lost Match'], axis=1, inplace=True)
+        cleaned_data['Vitórias/Derrota'] = cleaned_data.apply(lambda row: f"{row['Won Match']} - {row['Lost Match']}", axis=1)
+        cleaned_data['Win %'] = (cleaned_data['Won Match'] / cleaned_df['Total Matches']) * 100
+        cleaned_data['Win %'] = cleaned_data['Win %'].apply(lambda x: f"{x:.2f}%")
+        cleaned_data = cleaned_data.sort_values(by='Total Matches', ascending=False)
+        cleaned_data.drop(['Won Match', 'Lost Match'], axis=1, inplace=True)
     
         processed_dfs.append(cleaned_df)
     
