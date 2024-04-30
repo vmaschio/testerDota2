@@ -83,10 +83,7 @@ def get_data(url):
 
 def get_player_data(url_base, player_role):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-    data = {
-        'df_pub': [],
-        'df_esports': []
-    }
+    all_data = []
     sides = ['radiant', 'dire']
     player_role = player_role
 
@@ -180,7 +177,6 @@ def get_player_data_enemy(url_base):
         df = clean_player_df(df)
         return df
     else:
-        return None
 
 def clean_player_df(df, player_role):   
     if player_role == 'Carry':
