@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 # Tela de players adversários com jogadores dos outros times (repetir função da Midas)
 # Incluir botão de downloads das planilhas
 # Telas de Time/Players/Adversários: colocar opção 'Outros' e permitir input de link do Dotabuff do usuário (arrumar link com /heroes?date=month)
+# Guarda no cache a planilha para sempre ter acesso à uma
+# Open DOta API
 
 # Definindo os times/players e URLs
 teams = {
@@ -85,11 +87,9 @@ def get_player_data(url_base, player_role):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
     all_data = []
     sides = ['radiant', 'dire']
-    player_role = player_role
 
     for side in sides:
         url = f"{url_base}&faction={side}"
-        
         while True:
             response = requests.get(url, headers=headers)
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -105,7 +105,9 @@ def get_player_data(url_base, player_role):
                 result = result_cell.find('a').text.strip()
                 icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
                 type_cell = tr.find_all('td')[4]
-                type_game = type_cell.find('a').text.strip() if type_cell.find('a') else type_cell.text.strip()
+                match_type = type_cell.text.strip()
+
+                match_type = match_type.replace("All Pick", "").replace("Captains Mode", "").replace("Ability Draft", "").replace("Turbo", "").strip()
 
                 lane = ""
                 role = ""
@@ -115,55 +117,8 @@ def get_player_data(url_base, player_role):
                     if 'role-icon' in icon['class']:
                         role = icon['class'][1].split('-')[2]
 
-                all_data.append([hero_name, result, lane, role, side.capitalize(), type_game])
-
-                # Paginação
-                next_page = soup.find('a', rel='next')
-                if next_page:
-                    url = 'https://www.dotabuff.com' + next_page['href']
-                else:
-                    break
-                    
-    if all_data:
-        df = pd.DataFrame(all_data, columns=['Hero', 'Result', 'Lane', 'Role', 'Faction', 'Type'])
-        df = clean_player_df(df, player_role)
-        return df
-    else:
-        return None
-
-def get_player_data_enemy(url_base):
-    # Quando o player for core ignorar partida de sup e vice-versa
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-    all_data = []
-    sides = ['radiant', 'dire']
-
-    for side in sides:
-        url = f"{url_base}&faction={side}"
-        
-        while True:
-            response = requests.get(url, headers=headers)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            table = soup.find('table')
-
-            if not table:
-                break
-
-            for tr in table.find('tbody').find_all('tr'):
-                hero_cell = tr.find_all('td')[1]
-                hero_name = hero_cell.find('a').text.strip()
-                result_cell = tr.find_all('td')[3]
-                result = result_cell.find('a').text.strip()
-                icons = tr.find_all('td')[2].find_all('i', rel='tooltip')
-
-                lane = ""
-                role = ""
-                for icon in icons:
-                    if 'lane-icon' in icon['class']:
-                        lane = icon['class'][1].split('-')[2]
-                    if 'role-icon' in icon['class']:
-                        role = icon['class'][1].split('-')[2]
-
-                all_data.append([hero_name, result, lane, role, side.capitalize()])
+                print(f"Faction: {side} Hero: {hero_name}, Result: {result}, Type: {match_type}, Lane: {lane}, Role: {role}")
+                all_data.append([match_type, hero_name, result, lane, role, side])
 
             # Paginação
             next_page = soup.find('a', rel='next')
@@ -173,9 +128,9 @@ def get_player_data_enemy(url_base):
                 break
 
     if all_data:
-        df = pd.DataFrame(all_data, columns=['Hero', 'Result', 'Lane', 'Role', 'Faction', 'Type'])
-        df_pub, df_esports = clean_player_df(df, player_role)
-        return {'df_pub': df_pub, 'df_esports': df_esports}
+        df = pd.DataFrame(all_data, columns=['Type', 'Hero', 'Result', 'Lane', 'Role', 'Faction'])
+        df = clean_player_df(df, player_role)
+        return df
     else:
         return None
 
@@ -193,12 +148,18 @@ def clean_player_df(df, player_role):
     df_esports = df[df['Type'] == 'Tournament']
     dfs = [df_pub, df_esports]
 
-    processesd_dfs = []
+    processed_dfs = []
 
     for data in dfs:
         data['Total Matches'] = 1
         data['Won Match'] = (data['Result'] == 'Won Match').astype(int)
         data['Lost Match'] = (data['Result'] == 'Lost Match').astype(int)
+        data['Total Radiant Matches'] = (data['Faction'] == 'radiant')
+        data['Won Radiant Match'] = ((data['Faction'] == 'radiant') & (data['Result'] == 'Won Match')).astype(int)
+        data['Lost Radiant Match'] = ((data['Faction'] == 'radiant') & (data['Result'] == 'Lost Match')).astype(int)
+        data['Total Dire Matches'] = (data['Faction'] == 'dire')
+        data['Won Dire Match'] = ((data['Faction'] == 'dire') & (data['Result'] == 'Won Match')).astype(int)
+        data['Lost Dire Match'] = ((data['Faction'] == 'dire') & (data['Result'] == 'Lost Match')).astype(int)
         data['Core'] = (data['Role'] == 'core').astype(int)
         data['Safelane'] = (data['Lane'] == 'safelane').astype(int)
         data['Midlane'] = (data['Lane'] == 'midlane').astype(int)
@@ -210,14 +171,33 @@ def clean_player_df(df, player_role):
             'Total Matches': 'sum',
             'Won Match': 'sum',
             'Lost Match': 'sum',
+            'Total Radiant Matches': 'sum',
+            'Won Radiant Match': 'sum',
+            'Lost Radiant Match': 'sum',
+            'Total Dire Matches': 'sum',
+            'Won Dire Match': 'sum',
+            'Lost Dire Match': 'sum'
         }).reset_index()
-        cleaned_data['Vitórias/Derrota'] = cleaned_data.apply(lambda row: f"{row['Won Match']} - {row['Lost Match']}", axis=1)
-        cleaned_data['Win %'] = (cleaned_data['Won Match'] / cleaned_df['Total Matches']) * 100
+        cleaned_data['Vitórias/Derrotas'] = cleaned_data.apply(lambda row: f"{row['Won Match']} - {row['Lost Match']}", axis=1)
+        cleaned_data['Win %'] = (cleaned_data['Won Match'] / cleaned_data['Total Matches']) * 100
         cleaned_data['Win %'] = cleaned_data['Win %'].apply(lambda x: f"{x:.2f}%")
+        cleaned_data['Vitórias/Derrotas Radiant'] = cleaned_data.apply(lambda row: f"{row['Won Radiant Match']} - {row['Lost Radiant Match']}", axis=1)
+        cleaned_data['Radiant Win %'] = (cleaned_data['Won Radiant Match'] / cleaned_data['Total Radiant Matches']) * 100
+        cleaned_data['Radiant Win %'] = cleaned_data['Radiant Win %'].apply(lambda x: f"{x:.2f}%")
+        cleaned_data['Vitórias/Derrotas Dire'] = cleaned_data.apply(lambda row: f"{row['Won Dire Match']} - {row['Lost Dire Match']}", axis=1)
+        cleaned_data['Dire Win %'] = (cleaned_data['Won Dire Match'] / cleaned_data['Total Dire Matches']) * 100
+        cleaned_data['Dire Win %'] = cleaned_data['Dire Win %'].apply(lambda x: f"{x:.2f}%")
         cleaned_data = cleaned_data.sort_values(by='Total Matches', ascending=False)
-        cleaned_data.drop(['Won Match', 'Lost Match'], axis=1, inplace=True)
-    
-        processed_dfs.append(cleaned_df)
+        cleaned_data.drop(['Won Match', 'Lost Match', 'Won Radiant Match', 'Lost Radiant Match', 'Won Dire Match', 'Lost Dire Match', 'Total Radiant Matches', 'Total Dire Matches'], axis=1, inplace=True)
+
+        column_order = [
+            'Hero', 'Total Matches', 'Vitórias/Derrotas', 'Win %', 'Vitórias/Derrotas Radiant', 'Radiant Win %',
+            'Vitórias/Derrotas Dire', 'Dire Win %'
+        ]
+
+        cleaned_data = cleaned_data[column_order]
+
+        processed_dfs.append(cleaned_data)
     
     return processed_dfs[0], processed_dfs[1]
 
@@ -238,12 +218,12 @@ def show_teams(teams):
             st.write(f"Heróis mais escolhidos pelo(a) {team_choice}:")
             st.write(hero_data.to_html(escape=False, index=False), unsafe_allow_html=True)
 
-            col1, col2 = st.columns(2)
+            col1, col2 = st.columns([2, 1], gap="large")
             with col1:
-                st.write(f"Most banned heroes by {team_choice}:")
+                st.write(f"Heróis mais banidos pelo(a) {team_choice}:")
                 st.write(ban_data.to_html(escape=False, index=False), unsafe_allow_html=True)
             with col2:
-                st.write(f"Most banned heroes against {team_choice}:")
+                st.write(f"Heróis mais banidos contra {team_choice}:")
                 st.write(loss_data.to_html(escape=False, index=False), unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Erro ao mostrar dados: {str(e)}")
@@ -256,53 +236,18 @@ def show_players(players):
 
     if st.button('Buscar dados'):
         try:
-            player_stats = get_player_data(url, player_role)
+            player_stats_pub, player_stats_esports = get_player_data(url, player_role)
             st.write(f"Estatísticas do(a) {player_choice} no último mês:")
 
-            col1, col2 = st.columns([2, 1], gap="large")
-
-            with col1:
-                st.subheader("Jogos Públicos")
-                if player_stats['df_pub'] is not None:
-                    st.write(player_stats['df_pub'].to_html(escape=False, index=False), unsafe_allow_html=True)
-                else:
-                    st.write("Sem informações disponíveis para jogos públicos.")
-
-            with col2:
-                st.subheader("Jogos Oficiais")
-                if player_stats['df_esports'] is not None:
-                    st.write(player_stats['df_esports'].to_html(escape=False, index=False), unsafe_allow_html=True)
-                else:
-                    st.write("Sem informações disponíveis para jogos eSports.")
-                    
-        except Exception as e:
-            st.error(f"Erro ao buscar dados: {str(e)}")
-
-def show_enemy_players(players_enemy):
-    st.title('Estatísticas dos jogadores adversários')
-    enemy_player_list = list(players_enemy.keys()) + ['Outros']
-    player_choice = st.selectbox('Escolha o(a) jogador(a):', enemy_player_list)
-
-    if player_choice == 'Outros':
-        url = st.text_input('Insira o link de perfil do Dotabuff referente ao jogador:')
-    else:
-        url = players_enemy[player_choice]
-
-    url = url.replace('all','month')
-    if st.button('Buscar dados'):
-        try:
-            player_stats = get_player_data(url)
-            st.write(f"Estatísticas do(a) adversário no último mês:")
-
             st.subheader("Jogos Públicos")
-            if player_stats['df_pub'] is not None:
-                st.write(player_stats['df_pub'].to_html(escape=False, index=False), unsafe_allow_html=True)
+            if player_stats_pub is not None:
+                st.write(player_stats_pub.to_html(escape=False, index=False), unsafe_allow_html=True)
             else:
                 st.write("Sem informações disponíveis para jogos públicos.")
 
-            st.subheader("Jogos Profissionais")
-            if player_stats['df_esports'] is not None:
-                st.write(player_stats['df_esports'].to_html(escape=False, index=False), unsafe_allow_html=True)
+            st.subheader("Jogos Oficiais")
+            if player_stats_esports is not None:
+                st.write(player_stats_esports.to_html(escape=False, index=False), unsafe_allow_html=True)
             else:
                 st.write("Sem informações disponíveis para jogos eSports.")
                     
@@ -318,7 +263,7 @@ def main():
     elif app_mode == 'Jogadores':
         show_players(players)
     elif app_mode == 'Adversários':
-        show_enemy_players(players_enemy)
+        st.write(f"{app_mode} ainda não está disponível no App.")
     else:
         st.write(f"{app_mode} ainda não está disponível no App.")
 
